@@ -1,0 +1,11 @@
+plan:
+ui click is a better solution, currently use a string
+download zip from web/predownload, unzip it 
+generate Makefile
+    + template
+    + option for mcu 
+    + option from user, find necessary moduels, find files of user specified
+
+
+
+ArmStd(UserInput& input);
