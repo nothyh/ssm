@@ -9,6 +9,7 @@
 
 #include "arm_std.h"
 #include "utils.h"
+#include "logger.h"
 namespace fs = std::filesystem;
 
 ArmStd::ArmStd(std::unique_ptr<UserInput> input) : user_input(std::move(input))
@@ -24,6 +25,23 @@ ArmStd::~ArmStd()
 void ArmStd::set_mcu_family()
 {
     this->mcu_family = this->user_input->get_mcu_family();
+
+    if (mcu_family.length() < 2)
+    {
+        std::cerr << "Error: MCU family name is too short. Try again!" << std::endl;
+        this->mcu_family = this->user_input->get_mcu_family();
+    }
+    else if (mcu_family.length() > 2)
+    {
+        mcu_family = mcu_family.substr(0, 2);
+    }
+    else
+    {
+        for (auto &s : mcu_family)
+        {
+            std::toupper(s);
+        }
+    }
 }
 void ArmStd::set_peripherals()
 {
@@ -32,7 +50,19 @@ void ArmStd::set_peripherals()
 
 void ArmStd::set_project_path()
 {
-    this->project_path = this->user_input->get_project_path();
+    this->project_path = fs::path{this->user_input->get_project_path()};
+    if (!fs::exists(this->project_path))
+    {
+        std::cerr << "Error: Project path does not exist, Try to create!" << std::endl;
+        if (!fs::create_directories(this->project_path))
+        {
+            std::cerr << "Error: Failed to create project path!" << std::endl;
+        }
+        else
+        {
+            std::cout << "Project path created successfully!" << std::endl;
+        }
+    }
 }
 
 void log_zip_error(zip_t *archive, const std::string &context_message)
@@ -50,60 +80,53 @@ void log_zip_file_error(zip_file_t *file, const std::string &context_message)
     std::cerr << "libzip File Error (" << context_message << "): " << (err_str ? err_str : "Unknown error") << std::endl;
 }
 
-bool ArmStd::extract_libraries(const fs::path &zipFilePath, const std::string &folderNameToExtract, const fs::path &proj_path)
+bool ArmStd::extract_libraries(const fs::path &zip_file_path, const std::string &target_to_extract, const fs::path &dest_path)
 {
-    const fs::path destinationPath = proj_path / "Libraries"; // 目标路径
-
     zip_t *archive = nullptr;
     int zip_err = 0;
 
-    // 1. 打开 ZIP 压缩包 (只读)
-    // ZIP_RDONLY 通常是 0，但显式写出更清晰
-    archive = zip_open(zipFilePath.string().c_str(), ZIP_RDONLY, &zip_err);
+    archive = zip_open(zip_file_path.string().c_str(), ZIP_RDONLY, &zip_err);
     if (!archive)
     {
         zip_error_t error_struct;
-        zip_error_init_with_code(&error_struct, zip_err); // 用错误码初始化结构
-        std::cerr << "Error: Cannot open ZIP file '" << zipFilePath << "': "
+        zip_error_init_with_code(&error_struct, zip_err);
+        std::cerr << "Error: Cannot open ZIP file '" << zip_file_path << "': "
                   << zip_error_strerror(&error_struct) << " (code: " << zip_err << ")" << std::endl;
-        zip_error_fini(&error_struct); // 清理错误结构
+        zip_error_fini(&error_struct);
         return false;
     }
 
-    // 2. 确保目标目录存在
     try
     {
-        if (!fs::exists(destinationPath))
+        if (!fs::exists(dest_path))
         {
-            fs::create_directories(destinationPath);
-            std::cout << "Created destination directory: " << destinationPath << std::endl;
+            fs::create_directories(dest_path);
+            std::cout << "Created destination directory: " << dest_path << std::endl;
         }
-        else if (!fs::is_directory(destinationPath))
+        else if (!fs::is_directory(dest_path))
         {
-            std::cerr << "Error: Destination path '" << destinationPath << "' exists but is not a directory." << std::endl;
-            zip_close(archive); // 别忘了关闭 archive
+            std::cerr << "Error: Destination path '" << dest_path << "' exists but is not a directory." << std::endl;
+            zip_close(archive);
             return false;
         }
     }
     catch (const fs::filesystem_error &e)
     {
-        std::cerr << "Error creating/accessing destination directory '" << destinationPath << "': " << e.what() << std::endl;
+        std::cerr << "Error creating/accessing destination directory '" << dest_path << "': " << e.what() << std::endl;
         zip_close(archive);
         return false;
     }
 
     // 3. 准备要匹配的前缀 (例如 "Libraries/")
-    std::string prefix = folderNameToExtract;
+    std::string prefix = target_to_extract;
     if (!prefix.empty() && prefix.back() != '/')
     {
         prefix += '/'; // ZIP 内部路径通常用 '/'
     }
     const size_t prefixLen = prefix.length();
+    // does not provide prefix, which means extract all
     if (prefix.empty())
     {
-        std::cerr << "Error: Folder name to extract cannot be empty." << std::endl;
-        zip_close(archive);
-        return false;
     }
 
     // 4. 获取条目数量
@@ -148,8 +171,8 @@ bool ArmStd::extract_libraries(const fs::path &zipFilePath, const std::string &f
             // 匹配成功！
 
             // 计算相对路径和完整目标路径
-            std::string relativePathStr = entryName + prefixLen;                                     // 指向名称中前缀之后的部分
-            fs::path destEntryPath = destinationPath / fs::path(relativePathStr).lexically_normal(); // 使用 C++17 filesystem 处理路径
+            std::string relativePathStr = entryName + prefixLen;
+            fs::path destEntryPath = dest_path / fs::path(relativePathStr).lexically_normal();
 
             std::cout << "Processing: " << entryName << " -> " << destEntryPath;
 
@@ -281,8 +304,69 @@ bool ArmStd::extract_libraries(const fs::path &zipFilePath, const std::string &f
     }
     else
     {
-        std::cout << "Extraction process finished for folder '" << folderNameToExtract << "'." << std::endl;
+        std::cout << "Extraction process finished for folder '" << target_to_extract << "'." << std::endl;
     }
 
     return extracted_something; // 返回是否成功解压了任何内容
+}
+
+bool ArmStd::construct_core_dir()
+
+{
+    // create core dir
+    // copy file from unzip dir to core
+    fs::path core_dir = this->project_path / "Core";
+    if (!fs::exists(core_dir))
+    {
+        fs::create_directories(core_dir);
+        std::cout << "Created core directory: " << core_dir << std::endl;
+    }
+    else
+    {
+        std::cerr << "Core directory already exists: " << core_dir << std::endl;
+        return false;
+    }
+    // create inc
+    fs::path inc = core_dir / "Inc";
+    fs::path src = core_dir / "Src";
+    if (!fs::exists(inc))
+    {
+        fs::create_directories(inc);
+        std::cout << "Created Inc directory: " << inc << std::endl;
+    }
+    else
+    {
+        std::cerr << "Inc directory already exists: " << inc << std::endl;
+        return false;
+    }
+    if (!fs::exists(src))
+    {
+        fs::create_directories(src);
+        std::cout << "Created Src directory: " << src << std::endl;
+    }
+    else
+    {
+        std::cerr << "Src directory already exists: " << src << std::endl;
+        return false;
+    }
+    return false;
+}
+
+void ArmStd::extract_lib_to_dir(const fs::path &zip_file_path, const fs::path &dest_path)
+{
+    fs::path temp_dir = fs::temp_directory_path();
+    std::string dir_name = "tmp_" + std::to_string(std::time(nullptr));
+    unzip_tmp_dir = temp_dir / dir_name;
+    if (!fs::create_directories(unzip_tmp_dir))
+    {
+        std::cerr << "Error: Failed to create temporary directory!" << std::endl;
+        return;
+    }
+    std::cout << "Temporary directory created: " << unzip_tmp_dir << std::endl;
+    // Extract the zip file to the temporary directory
+    if (!extract_libraries(zip_file_path, "STM32F10x_StdPeriph_Lib_V3.6.0", unzip_tmp_dir))
+    {
+        std::cerr << "Error: Failed to extract libraries!" << std::endl;
+        return;
+    }
 }

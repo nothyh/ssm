@@ -1,1 +1,12 @@
-build
+*
+!/.gitignore
+!/CmakeLists.txt
+!/README
+!/note.md
+!/Makefile
+
+!/include/
+!/src/
+!/resources/
+!/.vscode/
+

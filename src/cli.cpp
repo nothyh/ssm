@@ -7,6 +7,7 @@ std::string CliInput::get_mcu_family()
     std::string mcu_family;
     std::cout << "Enter the MCU family: ";
     std::getline(std::cin, mcu_family);
+
     return mcu_family;
 }
 std::set<std::string> CliInput::get_peripherals()

@@ -9,12 +9,16 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/ssm",
-            "args": [],
+            "args": [
+                "<",
+                "${workspaceFolder}/input.txt"
+            ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            "preLaunchTask": "Build-Program",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

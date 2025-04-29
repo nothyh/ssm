@@ -9,6 +9,7 @@
 #include "arm_std.h"
 #include "arg_parse.h"
 #include "cli.h"
+#include "logger.h"
 std::string user_input()
 {
     std::string input = "gpio timer";
@@ -67,6 +68,8 @@ get_userinput()
 
 int main(int argc, char *argv[])
 {
+    Logger::instance().enable_debug();
+
     ArgParser arg_parser(argc, argv);
     std::unique_ptr<UserInput> input;
     if (arg_parser.input_mode == InputMode::CLI)
@@ -75,13 +78,13 @@ int main(int argc, char *argv[])
     }
 
     ArmStd arm_std(std::move(input));
+    arm_std.set_project_path();
     arm_std.set_mcu_family();
     arm_std.set_peripherals();
-    arm_std.set_project_path();
     const std::string zip_file_path{"/home/hyh/workspace/proj/ssm/ref/stdlib/en.stsw-stm32054_v3-6-0.zip"};
     arm_std.extract_libraries(fs::path(zip_file_path),
-                              "STM32F10x_StdPeriph_Lib_V3.6.0/Libraries",
-                              fs::path(arm_std.get_project_path()));
+                              "",
+                              arm_std.get_project_path());
 
     // user input, convert to modules, and necessary modules
     // lib file, extract files form lib zip, construct the project dir

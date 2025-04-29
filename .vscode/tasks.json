@@ -1,22 +1,24 @@
 {
     "tasks": [
         {
-            "type": "cppbuild",
-            "label": "C/C++: g++-12 build active file",
-            "command": "/usr/bin/g++-12",
-            "args": [
-                "-fdiagnostics-color=always",
-                "-g",
-                "${file}",
-                "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
-            ],
+            "type": "shell",
+            "label": "Build-Program",
+            "command": "make",
+            "args": [],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
                 "$gcc"
             ],
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
