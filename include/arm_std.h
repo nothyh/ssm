@@ -15,7 +15,8 @@ private:
     fs::path project_path;
     std::unique_ptr<UserInput> user_input;
     fs::path unzip_tmp_dir;
-    void extract_lib_to_dir(const fs::path &zip_file_path, const fs::path &dest_path);
+    bool extract_lib(const fs::path &zip_file_path, const std::string &to_extract, const fs::path &dest_path);
+    bool get_from_lib_to(const std::string &prefix, const std::string &dest_path);
 
 public:
     ArmStd(std::unique_ptr<UserInput> input);
@@ -26,7 +27,10 @@ public:
     void set_project_path();
     std::string get_project_path() const { return project_path; }
     std::string download_std_file(const std::string &file_name);
-    bool extract_libraries(const fs::path &zipFilePath, const std::string &folderNameToExtract, const fs::path &destinationPath);
+    bool extrect_lib_to_tmp(const fs::path &zip_file_path);
+
+    bool get_from_lib(const std::string &path);
     bool construct_core_dir();
+    fs::path get_unzip_gmp_dir();
 };
 #endif

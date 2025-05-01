@@ -1,7 +1,11 @@
 #include "utils.h"
+
 #include <filesystem>
-namespace fs = std::filesystem;
 #include <iostream>
+#include <vector>
+#include <ranges>
+
+namespace fs = std::filesystem;
 
 void create_directory(const std::string &path)
 {
@@ -35,4 +39,16 @@ void validate_file(const std::string &file_name)
     {
         std::cout << "File exists: " << file_name << '\n';
     }
+}
+
+std::vector<std::string> str_split(std::string_view str, std::string_view delim)
+{
+    std::vector<std::string> result;
+
+    for (const auto word : std::views::split(str, delim))
+    {
+        result.emplace_back(word.begin(), word.end());
+    }
+
+    return result;
 }

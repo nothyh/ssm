@@ -82,12 +82,8 @@ int main(int argc, char *argv[])
     arm_std.set_mcu_family();
     arm_std.set_peripherals();
     const std::string zip_file_path{"/home/hyh/workspace/proj/ssm/ref/stdlib/en.stsw-stm32054_v3-6-0.zip"};
-    arm_std.extract_libraries(fs::path(zip_file_path),
-                              "",
-                              arm_std.get_project_path());
+    arm_std.extrect_lib_to_tmp(zip_file_path);
+    std::cout << arm_std.get_unzip_gmp_dir() << std::endl;
 
-    // user input, convert to modules, and necessary modules
-    // lib file, extract files form lib zip, construct the project dir
-    // generate makefile
     return 0;
 }

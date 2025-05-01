@@ -14,11 +14,34 @@ namespace fs = std::filesystem;
 
 ArmStd::ArmStd(std::unique_ptr<UserInput> input) : user_input(std::move(input))
 {
-    // Constructor implementation
+    // create the unzip_tmp_dir
+    fs::path tmp_path = fs::temp_directory_path();
+    std::string dir = "tmp_" + std::to_string(std::time(nullptr));
+    this->unzip_tmp_dir = tmp_path / dir;
+    if (!fs::exists(this->unzip_tmp_dir))
+    {
+        fs::create_directories(this->unzip_tmp_dir);
+        std::cout << "Created temporary directory: " << this->unzip_tmp_dir << std::endl;
+    }
+    else
+    {
+        std::cerr << "Temporary directory already exists: " << this->unzip_tmp_dir << std::endl;
+    }
+    // set the project path
 }
 ArmStd::~ArmStd()
 {
     // Destructor implementation
+    // delete the unzip_tmp_dir
+    if (fs::exists(this->unzip_tmp_dir))
+    {
+        fs::remove_all(this->unzip_tmp_dir);
+        std::cout << "Deleted temporary directory: " << this->unzip_tmp_dir << std::endl;
+    }
+    else
+    {
+        std::cerr << "Temporary directory does not exist: " << this->unzip_tmp_dir << std::endl;
+    }
 }
 
 // Generalized method to get MCU family, supporting both command-line and GUI
@@ -60,7 +83,7 @@ void ArmStd::set_project_path()
         }
         else
         {
-            std::cout << "Project path created successfully!" << std::endl;
+            std::cout << "Project path: " << fs::absolute(this->project_path) << "has been created" << std::endl;
         }
     }
 }
@@ -80,7 +103,7 @@ void log_zip_file_error(zip_file_t *file, const std::string &context_message)
     std::cerr << "libzip File Error (" << context_message << "): " << (err_str ? err_str : "Unknown error") << std::endl;
 }
 
-bool ArmStd::extract_libraries(const fs::path &zip_file_path, const std::string &target_to_extract, const fs::path &dest_path)
+bool ArmStd::extract_lib(const fs::path &zip_file_path, const std::string &target_to_extract, const fs::path &dest_path)
 {
     zip_t *archive = nullptr;
     int zip_err = 0;
@@ -310,6 +333,56 @@ bool ArmStd::extract_libraries(const fs::path &zip_file_path, const std::string 
     return extracted_something; // 返回是否成功解压了任何内容
 }
 
+bool ArmStd::extrect_lib_to_tmp(const fs::path &zip_file_path)
+{
+    bool ret = this->extract_lib(zip_file_path, "", this->unzip_tmp_dir);
+    return ret;
+}
+
+bool ArmStd::get_from_lib(const std::string &path)
+{
+    get_from_lib_to(path, this->project_path);
+    return true;
+}
+bool ArmStd::get_from_lib_to(const std::string &prefix, const std::string &dest_path)
+{
+    fs::path target = this->unzip_tmp_dir / prefix;
+    // split the path by /
+    std::vector<std::string> path_split = str_split(prefix, "/");
+    if (!fs::exists(target))
+    {
+        std::cerr << "Error: Target path does not exist: " << target << std::endl;
+        return false;
+    }
+    // copy the targer to project path whether its a dir or file
+    std::string last_path;
+    if (path_split[path_split.size()] == "/")
+    {
+        last_path = path_split[path_split.size() - 1];
+    }
+    else
+    {
+        last_path = path_split[path_split.size()];
+    }
+    fs::path dest = fs::path{dest_path} / last_path;
+
+    if (fs::is_directory(target))
+    {
+        fs::copy(target, dest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+        std::cout << "Copied directory from " << target << " to " << dest << std::endl;
+    }
+    else if (fs::is_regular_file(target))
+    {
+        fs::copy_file(target, dest, fs::copy_options::overwrite_existing);
+        std::cout << "Copied file from " << target << " to " << dest << std::endl;
+    }
+    else
+    {
+        std::cerr << "Error: Target is neither a file nor a directory: " << target << std::endl;
+        return false;
+    }
+    return true;
+}
 bool ArmStd::construct_core_dir()
 
 {
@@ -352,21 +425,7 @@ bool ArmStd::construct_core_dir()
     return false;
 }
 
-void ArmStd::extract_lib_to_dir(const fs::path &zip_file_path, const fs::path &dest_path)
+fs::path ArmStd::get_unzip_gmp_dir()
 {
-    fs::path temp_dir = fs::temp_directory_path();
-    std::string dir_name = "tmp_" + std::to_string(std::time(nullptr));
-    unzip_tmp_dir = temp_dir / dir_name;
-    if (!fs::create_directories(unzip_tmp_dir))
-    {
-        std::cerr << "Error: Failed to create temporary directory!" << std::endl;
-        return;
-    }
-    std::cout << "Temporary directory created: " << unzip_tmp_dir << std::endl;
-    // Extract the zip file to the temporary directory
-    if (!extract_libraries(zip_file_path, "STM32F10x_StdPeriph_Lib_V3.6.0", unzip_tmp_dir))
-    {
-        std::cerr << "Error: Failed to extract libraries!" << std::endl;
-        return;
-    }
+    return this->unzip_tmp_dir;
 }
