@@ -78,12 +78,10 @@ int main(int argc, char *argv[])
     }
 
     ArmStd arm_std(std::move(input));
-    arm_std.set_project_path();
-    arm_std.set_mcu_family();
-    arm_std.set_peripherals();
     const std::string zip_file_path{"/home/hyh/workspace/proj/ssm/ref/stdlib/en.stsw-stm32054_v3-6-0.zip"};
     arm_std.extrect_lib_to_tmp(zip_file_path);
-    std::cout << arm_std.get_unzip_gmp_dir() << std::endl;
+    arm_std.get_from_lib_to_proj(R"(.*/STM32.*/Lib.*)");
+    arm_std.construct_core_dir();
 
     return 0;
 }

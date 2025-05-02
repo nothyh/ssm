@@ -6,6 +6,7 @@
 #include <string>
 #include <cstring>
 #include <fstream>
+#include <regex>
 
 #include "arm_std.h"
 #include "utils.h"
@@ -28,6 +29,19 @@ ArmStd::ArmStd(std::unique_ptr<UserInput> input) : user_input(std::move(input))
         std::cerr << "Temporary directory already exists: " << this->unzip_tmp_dir << std::endl;
     }
     // set the project path
+    this->set_project_path();
+    this->core_dir = this->project_path / "Core";
+    if (!fs::exists(this->core_dir))
+    {
+        fs::create_directories(this->core_dir);
+        std::cout << "Created core directory: " << this->core_dir << std::endl;
+    }
+    else
+    {
+        std::cerr << "Core directory already exists: " << this->core_dir << std::endl;
+    }
+    this->set_mcu_family();
+    this->set_peripherals();
 }
 ArmStd::~ArmStd()
 {
@@ -74,6 +88,11 @@ void ArmStd::set_peripherals()
 void ArmStd::set_project_path()
 {
     this->project_path = fs::path{this->user_input->get_project_path()};
+    if (this->project_path.is_relative())
+    {
+        this->project_path = fs::current_path() / this->project_path;
+        this->project_path = fs::absolute(this->project_path);
+    }
     if (!fs::exists(this->project_path))
     {
         std::cerr << "Error: Project path does not exist, Try to create!" << std::endl;
@@ -339,32 +358,39 @@ bool ArmStd::extrect_lib_to_tmp(const fs::path &zip_file_path)
     return ret;
 }
 
-bool ArmStd::get_from_lib(const std::string &path)
+bool ArmStd::get_from_lib_to_proj(const std::string &prefix_pattern)
 {
-    get_from_lib_to(path, this->project_path);
+    get_from_lib_to(prefix_pattern, this->project_path);
     return true;
 }
 bool ArmStd::get_from_lib_to(const std::string &prefix, const std::string &dest_path)
 {
-    fs::path target = this->unzip_tmp_dir / prefix;
+    // prefix pattern
+    std::regex prefix_re = std::regex(prefix);
+    // iterate the entry and find match
+    fs::path target;
+    for (auto const &entry : fs::recursive_directory_iterator(this->unzip_tmp_dir))
+    {
+        if (std::regex_match(entry.path().string(), prefix_re))
+        {
+            target = entry.path();
+            break;
+        }
+        // copy the file to dest
+    }
+    if (target.empty())
+    {
+        std::cerr << "Error: No matching file found in the temporary directory." << std::endl;
+        return false;
+    }
+
     // split the path by /
-    std::vector<std::string> path_split = str_split(prefix, "/");
     if (!fs::exists(target))
     {
         std::cerr << "Error: Target path does not exist: " << target << std::endl;
         return false;
     }
-    // copy the targer to project path whether its a dir or file
-    std::string last_path;
-    if (path_split[path_split.size()] == "/")
-    {
-        last_path = path_split[path_split.size() - 1];
-    }
-    else
-    {
-        last_path = path_split[path_split.size()];
-    }
-    fs::path dest = fs::path{dest_path} / last_path;
+    fs::path dest = fs::path{dest_path} / target.filename();
 
     if (fs::is_directory(target))
     {
@@ -386,20 +412,6 @@ bool ArmStd::get_from_lib_to(const std::string &prefix, const std::string &dest_
 bool ArmStd::construct_core_dir()
 
 {
-    // create core dir
-    // copy file from unzip dir to core
-    fs::path core_dir = this->project_path / "Core";
-    if (!fs::exists(core_dir))
-    {
-        fs::create_directories(core_dir);
-        std::cout << "Created core directory: " << core_dir << std::endl;
-    }
-    else
-    {
-        std::cerr << "Core directory already exists: " << core_dir << std::endl;
-        return false;
-    }
-    // create inc
     fs::path inc = core_dir / "Inc";
     fs::path src = core_dir / "Src";
     if (!fs::exists(inc))
@@ -422,6 +434,12 @@ bool ArmStd::construct_core_dir()
         std::cerr << "Src directory already exists: " << src << std::endl;
         return false;
     }
+    // use mcu_family to construct a prefix pattern
+    std::string h_prefix_pattern = R"(.*/STM32.*/Project/.*Template/stm32.*\.h)";
+    std::string c_prefix_pattern = R"(.*/STM32.*/Project/.*Template/stm32.*\.c)";
+    get_from_lib_to(h_prefix_pattern, inc.string());
+    get_from_lib_to(c_prefix_pattern, src.string());
+
     return false;
 }
 
