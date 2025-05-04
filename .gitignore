@@ -6,7 +6,17 @@
 !/Makefile
 
 !/include/
+!/include/**
+
 !/src/
+!/src/**
+
 !/resources/
+!/resources/**
+
 !/.vscode/
+!/.vscode/**
+
+!/images/
+!/images/**
 
