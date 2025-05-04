@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fstream>
 #include <regex>
+#include <format>
 
 #include "arm_std.h"
 #include "utils.h"
@@ -40,6 +41,7 @@ ArmStd::ArmStd(std::unique_ptr<UserInput> input) : user_input(std::move(input))
     {
         std::cerr << "Core directory already exists: " << this->core_dir << std::endl;
     }
+    this->makefile_path = this->project_path / "Makefile";
     this->set_mcu_family();
     this->set_peripherals();
 }
@@ -68,10 +70,6 @@ void ArmStd::set_mcu_family()
         std::cerr << "Error: MCU family name is too short. Try again!" << std::endl;
         this->mcu_family = this->user_input->get_mcu_family();
     }
-    else if (mcu_family.length() > 2)
-    {
-        mcu_family = mcu_family.substr(0, 2);
-    }
     else
     {
         for (auto &s : mcu_family)
@@ -83,6 +81,7 @@ void ArmStd::set_mcu_family()
 void ArmStd::set_peripherals()
 {
     this->user_peripherals = this->user_input->get_peripherals();
+    this->user_peripherals.insert("rcc");
 }
 
 void ArmStd::set_project_path()
@@ -378,6 +377,7 @@ bool ArmStd::get_from_lib_to(const std::string &prefix, const std::string &dest_
         }
         // copy the file to dest
     }
+
     if (target.empty())
     {
         std::cerr << "Error: No matching file found in the temporary directory." << std::endl;
@@ -435,15 +435,195 @@ bool ArmStd::construct_core_dir()
         return false;
     }
     // use mcu_family to construct a prefix pattern
-    std::string h_prefix_pattern = R"(.*/STM32.*/Project/.*Template/stm32.*\.h)";
-    std::string c_prefix_pattern = R"(.*/STM32.*/Project/.*Template/stm32.*\.c)";
-    get_from_lib_to(h_prefix_pattern, inc.string());
-    get_from_lib_to(c_prefix_pattern, src.string());
+    std::string it_h = R"(.*/STM32.*/Project/.*Template/stm32)" + str_to_lower(mcu_family) + R"(x_it.h)";
+    std::string conf_h = R"(.*/STM32.*/Project/.*Template/stm32)" + str_to_lower(mcu_family) + R"(x_conf.h)";
+    std::string it_c = R"(.*/STM32.*/Project/.*Template/stm32)" + str_to_lower(mcu_family) + R"(x_it.c)";
+    // std::string it_c = R"(.*/STM32.*/Project/.*Template/stm32.*\.c)";
+    get_from_lib_to(it_h, inc.string());
+    get_from_lib_to(conf_h, inc.string());
+    get_from_lib_to(it_c, src.string());
+    copy_from_to(fs::path{"/home/hyh/workspace/proj/ssm/ssm/resources/main.c"}, fs::path{src / "main.c"});
+    copy_from_to(fs::path{"/home/hyh/workspace/proj/ssm/ssm/resources/STM32F103XX_FLASH.ld"}, fs::path{project_path / "STM32F103XX_FLASH.ld"});
 
     return false;
+}
+
+bool ArmStd::copy_from_to(const fs::path &src, const fs::path &dest)
+{
+    if (!fs::exists(src))
+    {
+        std::cerr << "Error: Source path does not exist: " << src << std::endl;
+        return false;
+    }
+    if (fs::is_directory(src))
+    {
+        fs::copy(src, dest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+        std::cout << "Copied directory from " << src << " to " << dest << std::endl;
+    }
+    else if (fs::is_regular_file(src))
+    {
+        fs::copy_file(src, dest, fs::copy_options::overwrite_existing);
+        std::cout << "Copied file from " << src << " to " << dest << std::endl;
+    }
+    else
+    {
+        std::cerr << "Error: Source is neither a file nor a directory: " << src << std::endl;
+        return false;
+    }
+    return true;
 }
 
 fs::path ArmStd::get_unzip_gmp_dir()
 {
     return this->unzip_tmp_dir;
+}
+
+void ArmStd::construct_makefile()
+{
+    create_makefile();
+    modify_makefile();
+}
+
+void ArmStd::modify_makefile()
+{
+    // read
+    std::ifstream makefile(this->makefile_path, std::ios::binary | std::ios::ate);
+    if (!makefile)
+    {
+        throw std::system_error(errno, std::generic_category(), "Failed to open " + this->makefile_path.string());
+    }
+    const auto file_size = makefile.tellg();
+    if (file_size == std::ifstream::pos_type(-1))
+    {
+        throw std::system_error(errno, std::generic_category(), "Failed to get size of " + this->makefile_path.string());
+    }
+    // create a string to save the content
+    std::string content(file_size, '\0');
+    makefile.seekg(0);
+    if (!makefile.read(&content[0], file_size))
+    {
+        throw std::system_error(errno, std::generic_category(), "Failed to read " + this->makefile_path.string());
+    }
+    // close the file
+    makefile.close();
+    // replace the content
+    std::vector<std::pair<std::string, std::string>> replacements{
+        {"{{TARGET}}", this->project_path.filename().string()},
+        {"{{C_SOURCES}}", get_c_sources()},
+        {"{{ASM_SOURCES}}", get_asm_sources()},
+        {"{{C_DEFS}}", get_c_defs()},
+        {"{{C_INCLUDES}}", get_c_includes()},
+        {"{{CPU}}", get_cpu()},
+        {"{{FPU}}", get_fpu()},
+        {"{{FLOAT-ABI}}", get_float_abi()},
+        {"{{LDSCRIPT}}", get_ld_script()},
+
+    };
+
+    for (size_t i = 0; i < replacements.size(); ++i)
+    {
+        string_replace(content, replacements[i].first, replacements[i].second);
+    }
+    const fs::path makefile_tmp = makefile_path.parent_path() / "Makefile.tmp";
+    {
+        std::ofstream out{makefile_tmp, std::ios::binary};
+        out << content;
+    }
+    fs::rename(makefile_tmp, makefile_path);
+}
+
+void ArmStd::create_makefile()
+{
+    fs::path makefile_template{"/home/hyh/workspace/proj/ssm/ssm/resources/Makefile.template"};
+    try
+    {
+        fs::copy(makefile_template, makefile_path, fs::copy_options::skip_existing);
+    }
+    catch (const fs::filesystem_error &e)
+    {
+        std::cerr << "Error copying Makefile template: " << e.what() << std::endl;
+        return;
+    }
+
+    if (!fs::exists(makefile_path))
+    {
+        std::cerr << "Error: Makefile already exists: " << makefile_path << std::endl;
+    }
+}
+
+std::string ArmStd::peripherals_to_file()
+{
+    std::string peripherals;
+    std::string one;
+    fs::path one_path;
+    for (auto &peripheral : this->user_peripherals)
+    {
+        one = std::string("Libraries/") + "STM32" + str_to_upper(this->mcu_family) + "x_" + "StdPeriph_Driver/src/stm32" + this->mcu_family + "x_" + peripheral + ".c";
+        one_path = this->project_path / one;
+        if (!fs::exists(one_path))
+        {
+            std::cerr << "Error: Peripheral file does not exist: " << one_path << std::endl;
+            continue;
+        }
+        peripherals.append(one + " \\" + "\n");
+    }
+    return peripherals;
+}
+
+std::string ArmStd::get_c_sources()
+{
+    std::string c_sources;
+    c_sources.append("Core/Src/main.c");
+    c_sources.append(" \\\n");
+    c_sources.append(std::format("Core/Src/stm32{}x_it.c", this->mcu_family));
+    c_sources.append(" \\\n");
+    c_sources.append(std::format("Libraries/CMSIS/CM3/DeviceSupport/ST/STM32{}x/system_stm32{}x.c", str_to_upper(mcu_family), str_to_lower(mcu_family)));
+    c_sources.append(" \\\n");
+    c_sources.append(peripherals_to_file());
+    return c_sources;
+}
+std::string ArmStd::get_asm_sources()
+{
+    // TODO CM3
+    std::string asm_sources = std::format("Libraries/CMSIS/CM3/DeviceSupport/ST/STM32{}x/startup/gcc_ride7/startup_stm32{}x_md.s", str_to_upper(mcu_family), str_to_lower(mcu_family));
+    return asm_sources;
+}
+std::string ArmStd::get_c_includes()
+{
+    // TODO CM3
+    std::string c_includes;
+    c_includes.append(std::format("-ILibraries/CMSIS/CM3/DeviceSupport/ST/STM32{}x", str_to_upper(mcu_family)));
+    c_includes.append(" \\\n");
+    c_includes.append("-ILibraries/CMSIS/CM3/CoreSupport");
+    c_includes.append(" \\\n");
+    c_includes.append(std::format("-ILibraries/STM32{}x_StdPeriph_Driver/inc", str_to_upper(mcu_family)));
+    c_includes.append(" \\\n");
+    c_includes.append("-ICore/Inc");
+    return c_includes;
+}
+
+std::string ArmStd::get_c_defs()
+{
+    std::string c_defs;
+    c_defs.append(std::format("-DSTM32{}X_MD \\\n", str_to_upper(mcu_family)));
+    c_defs.append("-DUSE_STDPERIPH_DRIVER \\\n");
+    return c_defs;
+}
+std::string ArmStd::get_cpu()
+{
+    std::string cpu{"-mcpu=cortex-m3"};
+    return cpu;
+}
+std::string ArmStd::get_fpu()
+{
+    return "";
+}
+std::string ArmStd::get_float_abi()
+{
+    return "";
+}
+std::string ArmStd::get_ld_script()
+{
+    std::string ld_script = std::format("STM32{}3XX_FLASH.ld", str_to_upper(mcu_family));
+    return ld_script;
 }

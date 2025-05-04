@@ -73,7 +73,7 @@ CPU = {{CPU}}
 FPU = {{FPU}}
 
 # float-abi
-FLOAT-ABI = {FLOAT-ABI}
+FLOAT-ABI = {{FLOAT-ABI}}
 
 # mcu
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
@@ -84,8 +84,7 @@ AS_DEFS =
 
 # C defines
 C_DEFS =  \
--DUSE_HAL_DRIVER \
--DSTM32F407xx
+{{C_DEFS}}
 
 
 # AS includes
@@ -93,12 +92,7 @@ AS_INCLUDES =
 
 # C includes
 C_INCLUDES =  \
--ICore/Inc \
--IDrivers/STM32F4xx_HAL_Driver/Inc \
--IDrivers/STM32F4xx_HAL_Driver/Inc/Legacy \
--IDrivers/CMSIS/Device/ST/STM32F4xx/Include \
--IDrivers/CMSIS/Include
-
+{{C_INCLUDES}}
 
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
@@ -118,7 +112,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
-LDSCRIPT = STM32F407XX_FLASH.ld
+LDSCRIPT = {{LDSCRIPT}}
 
 # libraries
 LIBS = -lc -lm -lnosys 

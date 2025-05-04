@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "arm_std.cpp": "cpp",
         "iosfwd": "cpp",
         "istream": "cpp",
         "cctype": "cpp",

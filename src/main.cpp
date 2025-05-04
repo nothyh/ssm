@@ -35,16 +35,6 @@ std::string read_file_to_string(const std::string &filename)
     return content.str();
 }
 
-void string_replace(std::string &content, const std::string &from, const std::string &to)
-{
-    size_t pos = 0;
-    while ((pos = content.find(from, pos)) != std::string::npos)
-    {
-        content.replace(pos, from.length(), to);
-        pos += to.length(); // Move past the replaced part to avoid infinite loop
-    }
-}
-
 bool generate_makefile()
 {
     std::string makefile_template;
@@ -82,6 +72,7 @@ int main(int argc, char *argv[])
     arm_std.extrect_lib_to_tmp(zip_file_path);
     arm_std.get_from_lib_to_proj(R"(.*/STM32.*/Lib.*)");
     arm_std.construct_core_dir();
+    arm_std.construct_makefile();
 
     return 0;
 }

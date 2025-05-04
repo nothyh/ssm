@@ -52,3 +52,44 @@ std::vector<std::string> str_split(std::string_view str, std::string_view delim)
 
     return result;
 }
+
+void string_replace(std::string &content, const std::string &from, const std::string &to)
+{
+    if (content.empty() || from.empty())
+    {
+        return; // Nothing to replace
+    }
+    size_t pos = 0;
+    size_t from_length = from.length();
+    size_t to_length = to.length();
+    while ((pos = content.find(from, pos)) != std::string::npos)
+    {
+        content.replace(pos, from_length, to);
+        pos += to_length; // Move past the replaced part to avoid infinite loop
+    }
+}
+
+std::string str_to_upper(const std::string &str)
+{
+    std::string str_copy = str; // Create a copy to avoid modifying the original string
+    for (char &c : str_copy)
+    {
+        if (c >= 'a' && c <= 'z')
+        {
+            c -= 32; // Convert to uppercase
+        }
+    }
+    return str_copy;
+}
+std::string str_to_lower(const std::string &str)
+{
+    std::string str_copy = str; // Create a copy to avoid modifying the original string
+    for (char &c : str_copy)
+    {
+        if (c >= 'A' && c <= 'Z')
+        {
+            c += 32; // Convert to uppercase
+        }
+    }
+    return str_copy;
+}
