@@ -1,0 +1,7 @@
+{
+    "clangd.path": "/home/hyh/.config/Code/User/globalStorage/llvm-vs-code-extensions.vscode-clangd/install/19.1.2/clangd_19.1.2/bin/clangd",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}",
+        "--background-index"
+    ]
+}
