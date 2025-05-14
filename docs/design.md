@@ -50,4 +50,12 @@ keil_pack:
 解析：解析后，参数传递给all_config
 
 stdlib:  一个类，包含许多文件路径
+解压library到项目路径,
+解压project下的部分到项目路径,
+设置各个变量
+
 makefile:一个类，包含需要替换的内容
+cpu ,fpu 来自json
+source, include来自makefiel
+
+
