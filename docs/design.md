@@ -19,6 +19,7 @@ mcu参数模块
 先考虑简单的情况，所有参数有mcu.json 提供，包括，mcu全名，项目路径，需要的文件路径，需要的外设
 参数可以由命令行提供，也可以有json提供，以最新的为准
 需要的参数包括
+不应该在命令行输入这些参数,太多，易错
 -s --series
 -l -- line
 -sp -- stdpath
@@ -34,3 +35,19 @@ optional parameters:
 -pe --peripherals  in the end of input
 -d --debug
 -q --quiet
+使用json传递参数
+-j --json
+
+
+ssm_config.json
+keil_pack:
+如果提供了pack路径，不下载，直接解压，然后解析
+否则，到~/ssm下寻找, 如果找到 解压，解析
+否则下载到指定路径或~/ssm 或当前文件夹, 解压，解析
+
+解压用
+解压：解压到tmp下随机
+解析：解析后，参数传递给all_config
+
+stdlib:  一个类，包含许多文件路径
+makefile:一个类，包含需要替换的内容

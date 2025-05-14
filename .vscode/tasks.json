@@ -1,0 +1,40 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "rm ./build -rf && cmake -DCMAKE_BUILD_TYPE=Debug -B build && cmake  --build build",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "silent",
+                "revealProblems": "onProblem",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "./build/ssm -j /home/hyh/workspace/proj/ssm/ssm/resources/ssm_config.json",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "silent",
+                "revealProblems": "onProblem",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "build-then-run",
+            "dependsOn": [
+                "build",
+                "run"
+            ],
+            "dependsOrder": "sequence",
+        }
+    ]
+}

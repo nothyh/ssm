@@ -1,9 +1,8 @@
 #include "utils.h"
-#include "mcu.h"
 #include "spdlog/spdlog.h"
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
+#include <optional>
 #include <spdlog/common.h>
 void ensure_value(int argc, char *argv[], int i) {
   // ssm -s f1
@@ -18,56 +17,44 @@ void ensure_value(int argc, char *argv[], int i) {
     exit(EXIT_FAILURE);
   }
 }
-void parse_args(AllConfig &all_config, int argc, char *argv[]) {
-  if (argc < 2) {
-    print_usage();
-    exit(0);
-  }
+std::optional<std::string> parse_args(int argc, char *argv[]) {
   std::string arg;
-  for (int i = 0; i < argc; i++) {
+  for (int i = 1; i < argc; i++) {
     arg = argv[i];
-    if (arg == "-s" || arg == "--series") {
+    if (arg == "-j" || arg == "json") {
       ensure_value(argc, argv, i);
-      all_config.mcu_config.series = argv[++i];
-    } else if (arg == "-l" || arg == "--line") {
-      ensure_value(argc, argv, i);
-      all_config.mcu_config.line = argv[++i];
-    } else if (arg == "-sp" || arg == "--stdpath") {
-      ensure_value(argc, argv, i);
-      all_config.std_file_path = fs::path(argv[++i]);
-    } else if (arg == "-p" || arg == "--pro") {
-      ensure_value(argc, argv, i);
-      all_config.project_path = fs::path(argv[++i]);
-    } else if (arg == "-pe" || arg == "--peri") {
-      // if (i != (argc - 1)) {
-      //  spdlog::info("put peripherlals at the end of command");
-      //  print_usage();
-      //  exit(EXIT_FAILURE);
-      //}
+      return std::string(argv[++i]);
 
-      // ssm -pe gpio tim -s f1
-      // argc = 6, i = 1
-      ensure_value(argc, argv, i);
-      // j = 2, insert
-      // j = 3, insert
-      // j = 4, break
-      int value_index = ++i;
-      for (; value_index < argc; value_index++) {
-        if (argv[value_index][0] != '-') {
-          all_config.user_peripherals.insert(argv[value_index]);
-        }
-      }
-      // j = 4
-      i = value_index - 1;
-      // i = 3
-    }
-
-    else if (arg == "-d" || arg == "--debug") {
+    } else if (arg == "-d" || arg == "--debug") {
       spdlog::set_level(spdlog::level::debug);
     } else if (arg == "-q" || arg == "--quiet") {
       spdlog::set_level(spdlog::level::off);
+    } else if (arg == "-h" || arg == "--help") {
+      print_usage();
     }
   }
+  return std::nullopt;
 }
 
 void print_usage() { std::cout << "hello"; }
+
+std::string str_to_upper(const std::string &str) {
+  std::string str_copy =
+      str; // Create a copy to avoid modifying the original string
+  for (char &c : str_copy) {
+    if (c >= 'a' && c <= 'z') {
+      c -= 32; // Convert to uppercase
+    }
+  }
+  return str_copy;
+}
+std::string str_to_lower(const std::string &str) {
+  std::string str_copy =
+      str; // Create a copy to avoid modifying the original string
+  for (char &c : str_copy) {
+    if (c >= 'A' && c <= 'Z') {
+      c += 32; // Convert to uppercase
+    }
+  }
+  return str_copy;
+}

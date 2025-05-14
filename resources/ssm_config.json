@@ -1,0 +1,12 @@
+{
+    "std_file_path": "/home/hyh/workspace/proj/ssm/ref/stdlib/en.stsw-stm32065_v1-9-0.zip",
+    "project_path": ".",
+    "user_peripherals": [
+        "gpio",
+        "tim"
+    ],
+    "mcu_config": {
+        "series": "f4",
+        "line": "07"
+    }
+}
