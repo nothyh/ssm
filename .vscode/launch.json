@@ -14,6 +14,7 @@
                 "/home/hyh/workspace/proj/ssm/ssm/resources/ssm_config.json"
             ],
             "stopAtEntry": false,
+            "preLaunchTask": "build",
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
