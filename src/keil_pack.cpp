@@ -10,7 +10,7 @@
 #include <pugixml.hpp>
 #include <spdlog/spdlog.h>
 #include <string>
-KeilPack::~KeilPack() {}
+KeilPack::~KeilPack() { fs::remove_all(unzip_path); }
 
 KeilPack::KeilPack(const AllConfig &all_config_src)
     : all_config(all_config_src),
