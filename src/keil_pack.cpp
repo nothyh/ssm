@@ -6,9 +6,11 @@
 #include <ctime>
 #include <curl/curl.h>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <pugixml.hpp>
 #include <spdlog/spdlog.h>
+#include <sstream>
 #include <string>
 KeilPack::~KeilPack() { fs::remove_all(unzip_path); }
 
@@ -150,4 +152,17 @@ void KeilPack::unzip() {
   // Keil.STM32F4xx_DFP.pdsc
   std::string prefix = "Keil." + short_name + ".pdsc";
   default_unzip(pack_path, prefix, unzip_path);
+}
+
+void KeilPack::parse() {
+  std::string file_name = "Keil." + short_name + ".pdsc";
+  std::string file_path = (unzip_path / file_name).string();
+  std::ifstream file(file_path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  pugi::xml_document doc;
+  pugi::xml_parse_result parse_result = doc.load_string(buffer.str().c_str());
+  if (!parse_result) {
+    spdlog::debug("Failed to parse XML: {}", parse_result.description());
+  }
 }

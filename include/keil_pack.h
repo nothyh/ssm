@@ -36,6 +36,7 @@ public:
   void download_pack(const std::string &dest);
   // void extract_files(const std::string &pack_path,)
   void unzip() override;
+  void parse();
 };
 
 #endif
