@@ -106,7 +106,7 @@ bool Pack::default_unzip(const fs::path &zip_file_path,
       // 匹配成功！
 
       // 计算相对路径和完整目标路径
-      std::string relativePathStr = entryName + prefixLen;
+      std::string relativePathStr(entryName, entryNameLen);
       fs::path destEntryPath =
           dest_path / fs::path(relativePathStr).lexically_normal();
 
